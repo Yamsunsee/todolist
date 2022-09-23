@@ -5,7 +5,6 @@ import { Task } from "./types";
 
 const App: React.FC = () => {
   const [newTask, setNewTask] = useState("");
-  const [newPriority, setNewPriority] = useState("low");
   const [search, setSearch] = useState("");
   const [priorities, setPriorities] = useState<string[]>(["low", "medium", "high"]);
   const [status, setStatus] = useState<string[]>(["pending", "completed"]);
@@ -37,14 +36,24 @@ const App: React.FC = () => {
   };
 
   const handleAddNewTask = () => {
+    let priority = "low";
+    let label = newTask.trim();
+    const sign = label.charAt(0);
+    if (sign === "!") {
+      priority = "medium";
+      label = label.slice(1);
+    } else if (sign === "*") {
+      priority = "high";
+      label = label.slice(1);
+    }
     if (newTask.trim().length !== 0) {
       setTasks((prev) => [
         ...prev,
         {
           id: nanoid(),
-          label: newTask.trim(),
+          label,
           isCompleted: false,
-          priority: newPriority,
+          priority,
         },
       ]);
       setNewTask("");
@@ -72,6 +81,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePrioritiesToggle = () => {
+    if (priorities.length === 0) {
+      setPriorities(["low", "medium", "high"]);
+    } else {
+      setPriorities([]);
+    }
+  };
+
   const handleStatusChange = (targetState: string) => () => {
     if (status.includes(targetState)) {
       setStatus((prev) => prev.filter((state) => state !== targetState));
@@ -80,73 +97,149 @@ const App: React.FC = () => {
     }
   };
 
+  const handleStatusToggle = () => {
+    if (status.length === 0) {
+      setStatus(["pending", "completed"]);
+    } else {
+      setStatus([]);
+    }
+  };
+
+  const handleDelete = (targetState: Task) => () => {
+    setTasks((tasks) => tasks.filter((task) => task.id !== targetState.id));
+  };
+
   return (
-    <div className="flex w-full select-none items-center justify-center bg-slate-900 p-8">
-      <div className="flex min-h-[calc(100vh-4rem)] w-[50rem] flex-col items-center justify-center rounded-lg bg-slate-800 p-8 text-blue-100 shadow-lg">
-        <div className="">Tasks</div>
-        <div className="">
-          <input
-            className="text-black"
-            type="text"
-            placeholder="Search by name..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <div className="flex">
-            {["low", "medium", "high"].map((priority) => (
-              <div
-                onClick={handlePrioritiesChange(priority)}
-                key={priority}
-                className={`flex items-center ${priority}`}
-              >
-                {priorities.includes(priority) ? <IonIcon name="checkbox" /> : <IonIcon name="square-outline" />}
-                <div>{priority}</div>
+    <div className="flex w-full select-none items-center justify-center p-8">
+      <div className="flex min-h-[calc(100vh-4rem)] w-[50rem] flex-col items-center justify-center rounded-lg p-8 text-slate-400 shadow-lg">
+        <div className="text-5xl font-bold text-slate-300">
+          &lt; Todo
+          <span className="text-slate-400">list </span>
+          /&gt;
+        </div>
+        <div className="mt-8 w-full">
+          <div className="relative flex">
+            <div className="mr-4 flex-grow">
+              <input
+                className="search w-full rounded-lg border-2 border-slate-300 py-4 pl-12 pr-8 italic text-slate-400 outline-none placeholder:text-slate-300 focus:border-slate-400"
+                type="text"
+                placeholder="Search by name..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <IonIcon
+                name="search"
+                className="absolute left-4 top-1/2 -translate-y-1/2 transform text-2xl text-slate-300"
+              />
+            </div>
+            <div className="group z-10 flex cursor-pointer items-center justify-center rounded-lg border-2 border-slate-300 px-8 py-4">
+              <IonIcon name="options-outline" className="text-2xl" />
+              <div className="ml-2 italic">Filter</div>
+              <div className="absolute left-full top-0 hidden flex-col pl-16 group-hover:flex">
+                <div className="rounded-lg border-2 border-slate-300 p-4 italic">
+                  <div>
+                    <div onClick={handlePrioritiesToggle} className="text-slate-300">
+                      &lt; Priorities /&gt;
+                    </div>
+                    <div className="flex gap-4">
+                      {["low", "medium", "high"].map((priority) => (
+                        <div
+                          onClick={handlePrioritiesChange(priority)}
+                          key={priority}
+                          className={`flex items-center rounded-lg pl-2 capitalize ${
+                            priorities.includes(priority) ? "text-slate-400" : "text-slate-300"
+                          }`}
+                        >
+                          [{priority}]
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-8">
+                    <div onClick={handleStatusToggle} className="text-slate-300">
+                      &lt; Status /&gt;
+                    </div>
+                    <div className="flex gap-4">
+                      {["pending", "completed"].map((state) => (
+                        <div
+                          onClick={handleStatusChange(state)}
+                          key={state}
+                          className={`flex items-center capitalize ${state} ${
+                            status.includes(state) ? "text-slate-400" : "text-slate-300"
+                          }`}
+                        >
+                          [{state}]
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="flex">
-            {["pending", "completed"].map((state) => (
-              <div onClick={handleStatusChange(state)} key={state} className={`flex items-center ${state}`}>
-                {status.includes(state) ? <IonIcon name="checkbox" /> : <IonIcon name="square-outline" />}
-                <div>{state}</div>
-              </div>
-            ))}
+            </div>
           </div>
         </div>
-        {filteredTasks.length > 0 ? (
-          <div className="flex-grow">
-            {filteredTasks.map((task) => (
-              <div
-                className={`flex items-center ${task.isCompleted && "line-through opacity-80"} ${task.priority}`}
-                key={task.id}
-                onClick={handleToggleComplete(task)}
-              >
-                {task.isCompleted ? <IonIcon name="checkbox" /> : <IonIcon name="square-outline" />}
-                <div>{task.label}</div>
-              </div>
-            ))}
+        <div className="mt-4 flex w-full flex-grow flex-col rounded-lg border-2 border-slate-300 p-4">
+          {filteredTasks.length > 0 ? (
+            <div className="flex flex-grow flex-col gap-2">
+              {filteredTasks.map((task) => (
+                <div
+                  className={`flex cursor-pointer items-center justify-between rounded-lg border-2 border-dashed border-slate-300 p-4 hover:border-solid ${
+                    task.isCompleted && "border-transparent opacity-80"
+                  }`}
+                  key={task.id}
+                  onClick={handleToggleComplete(task)}
+                >
+                  <div className="flex items-center">
+                    {task.isCompleted && <IonIcon name="checkmark" />}
+                    <div className="ml-2">{task.label}</div>
+                  </div>
+                  {task.isCompleted ? (
+                    <IonIcon
+                      name="trash"
+                      className="cursor-pointer text-xl text-slate-300 hover:text-slate-400"
+                      onClick={handleDelete(task)}
+                    />
+                  ) : (
+                    <div>{task.priority === "high" ? "|||" : task.priority === "medium" ? "||" : "|"}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-grow flex-col items-center justify-center text-center italic text-slate-400">
+              <p>No matching tasks!</p>
+              <code className="mt-8 rounded-lg border-2 border-dashed border-slate-300 p-8">
+                <p>&lt; Priorities &gt;</p>
+                <p>taskName &rarr; [Low]</p>
+                <p>!taskName &rarr; [Medium]</p>
+                <p>*taskName &rarr; [High]</p>
+                <p>&lt;/ Priorities &gt;</p>
+              </code>
+            </div>
+          )}
+        </div>
+        <div className="mt-4 flex w-full">
+          <div className="relative mr-4 flex-grow">
+            <input
+              className="add w-full rounded-lg border-2 border-slate-300 py-4 pl-12 pr-8 italic text-slate-400 outline-none placeholder:text-slate-300 focus:border-slate-400"
+              onChange={handleNewTaskChange}
+              onKeyDown={handleSubmitNewTaskChange}
+              value={newTask}
+              type="text"
+              placeholder="Enter new task here..."
+            />
+            <IonIcon
+              name="create-outline"
+              className="absolute left-4 top-1/2 -translate-y-1/2 transform text-2xl text-slate-300"
+            />
           </div>
-        ) : (
-          <div className="flex-grow italic text-slate-400">No matching tasks</div>
-        )}
-        <div className="">
-          <input
-            className="text-black"
-            onChange={handleNewTaskChange}
-            onKeyDown={handleSubmitNewTaskChange}
-            value={newTask}
-            type="text"
-            placeholder="Enter new task here..."
-          />
-          <div className="flex">
-            {["low", "medium", "high"].map((priority) => (
-              <div onClick={() => setNewPriority(priority)} key={priority} className={`flex items-center ${priority}`}>
-                {newPriority === priority ? <IonIcon name="checkbox" /> : <IonIcon name="square-outline" />}
-                <div>{priority}</div>
-              </div>
-            ))}
+          <div
+            onClick={handleAddNewTask}
+            className="group z-10 flex cursor-pointer items-center justify-center rounded-lg border-2 border-slate-300 px-8 py-4 hover:border-slate-400"
+          >
+            <IonIcon name="add-circle-outline" className="text-2xl" />
+            <div className="ml-2 italic">Add</div>
           </div>
-          <button onClick={handleAddNewTask}>Add</button>
         </div>
       </div>
     </div>

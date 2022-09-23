@@ -9,23 +9,11 @@
 }
 
 @layer components {
-  .high {
-    @apply text-red-400;
+  input.search:focus + span[name="search"] {
+    @apply text-slate-400;
   }
 
-  .medium {
-    @apply text-yellow-400;
-  }
-
-  .low {
-    @apply text-green-400;
-  }
-
-  .pending {
-    @apply text-blue-400;
-  }
-
-  .completed {
-    @apply text-violet-400;
+  input.add:focus + span[name="create-outline"] {
+    @apply text-slate-400;
   }
 }
