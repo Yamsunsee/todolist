@@ -9,11 +9,19 @@
 }
 
 @layer components {
-  input.search:focus + span[name="search"] {
+  input.filters:focus + span[name="funnel-outline"] {
     @apply text-slate-400;
   }
 
   input.add:focus + span[name="create-outline"] {
     @apply text-slate-400;
+  }
+
+  .background {
+    background-image: repeating-linear-gradient(45deg, #222, #333, #222 5px);
+  }
+
+  .background-white {
+    background-image: repeating-linear-gradient(135deg, #111, #222, #111 5px);
   }
 }

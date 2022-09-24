@@ -1,29 +1,75 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import IonIcon from "@reacticons/ionicons";
 import { nanoid } from "nanoid";
-import { Task } from "./types";
+
+type Task = {
+  id: string;
+  label: string;
+  isCompleted: boolean;
+  priority: string;
+};
+
+type Regex = {
+  groups?: {
+    options?: string;
+    label?: string;
+  };
+} | null;
 
 const App: React.FC = () => {
   const [newTask, setNewTask] = useState("");
-  const [search, setSearch] = useState("");
-  const [priorities, setPriorities] = useState<string[]>(["low", "medium", "high"]);
-  const [status, setStatus] = useState<string[]>(["pending", "completed"]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [filters, setFilters] = useState("");
+  const storageTasks = useMemo(() => {
+    const tasks = JSON.parse(localStorage.getItem("yam-todolist") || "");
+    if (tasks.length > 0) return tasks;
+    localStorage.setItem("yam-todolist", JSON.stringify([]));
+  }, []);
+  const [tasks, setTasks] = useState<Task[]>(storageTasks);
+
+  useEffect(() => {
+    localStorage.setItem("yam-todolist", JSON.stringify(tasks));
+  }, [tasks]);
 
   const filteredTasks = useMemo(() => {
-    const firstGroup = tasks.filter((task) => task.label.includes(search));
-    const secondGroup = firstGroup.filter((task) => priorities.includes(task.priority));
-    const thirdGroup = secondGroup.filter((task) => !task.isCompleted);
-    const fourthGroup = secondGroup.filter((task) => task.isCompleted);
+    let options = "";
+    let label = "";
+    const matches: Regex = filters.match(/(?<options>^[?!*@#]+)(?<label>.*)/m);
+    if (matches) {
+      options = matches?.groups?.options || "";
+      label = matches?.groups?.label || "";
+    } else {
+      label = filters;
+    }
 
-    return status.length === 1
-      ? status.includes("pending")
-        ? thirdGroup
-        : fourthGroup
-      : status.length === 2
-      ? secondGroup
-      : [];
-  }, [search, priorities, status, tasks]);
+    // Filters by name
+    let firstGroup: Task[] = tasks.filter((task) => task.label.includes(label));
+
+    // Filters by priorities
+    let secondGroup: Task[] = [];
+    const lowTasks = firstGroup.filter((task) => task.priority === "low");
+    const mediumTasks = firstGroup.filter((task) => task.priority === "medium");
+    const highTasks = firstGroup.filter((task) => task.priority === "high");
+    if (options.includes("?") || options.includes("!") || options.includes("*")) {
+      if (options.includes("?")) secondGroup = [...secondGroup, ...lowTasks];
+      if (options.includes("!")) secondGroup = [...secondGroup, ...mediumTasks];
+      if (options.includes("*")) secondGroup = [...secondGroup, ...highTasks];
+    } else {
+      secondGroup = firstGroup;
+    }
+
+    // Filters by status
+    let thirdGroup: Task[] = [];
+    const pendingTasks = secondGroup.filter((task) => !task.isCompleted);
+    const completedTasks = secondGroup.filter((task) => task.isCompleted);
+    if (options.includes("@") || options.includes("#")) {
+      if (options.includes("@")) thirdGroup = [...thirdGroup, ...pendingTasks];
+      if (options.includes("#")) thirdGroup = [...thirdGroup, ...completedTasks];
+    } else {
+      thirdGroup = secondGroup;
+    }
+
+    return thirdGroup;
+  }, [filters, tasks]);
 
   const handleNewTaskChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNewTask(event.target.value);
@@ -73,45 +119,13 @@ const App: React.FC = () => {
     );
   };
 
-  const handlePrioritiesChange = (targetPriority: string) => () => {
-    if (priorities.includes(targetPriority)) {
-      setPriorities((prev) => prev.filter((priority) => priority !== targetPriority));
-    } else {
-      setPriorities((prev) => [...prev, targetPriority]);
-    }
-  };
-
-  const handlePrioritiesToggle = () => {
-    if (priorities.length === 0) {
-      setPriorities(["low", "medium", "high"]);
-    } else {
-      setPriorities([]);
-    }
-  };
-
-  const handleStatusChange = (targetState: string) => () => {
-    if (status.includes(targetState)) {
-      setStatus((prev) => prev.filter((state) => state !== targetState));
-    } else {
-      setStatus((prev) => [...prev, targetState]);
-    }
-  };
-
-  const handleStatusToggle = () => {
-    if (status.length === 0) {
-      setStatus(["pending", "completed"]);
-    } else {
-      setStatus([]);
-    }
-  };
-
   const handleDelete = (targetState: Task) => () => {
     setTasks((tasks) => tasks.filter((task) => task.id !== targetState.id));
   };
 
   return (
-    <div className="flex w-full select-none items-center justify-center p-8">
-      <div className="flex min-h-[calc(100vh-4rem)] w-[50rem] flex-col items-center justify-center rounded-lg p-8 text-slate-400 shadow-lg">
+    <div className="background flex w-full select-none items-center justify-center p-8">
+      <div className="background-white flex min-h-[calc(100vh-4rem)] w-[50rem] flex-col items-center justify-center rounded-lg p-8 text-slate-400 shadow-lg">
         <div className="text-5xl font-bold text-slate-300">
           &lt; Todo
           <span className="text-slate-400">list </span>
@@ -119,62 +133,18 @@ const App: React.FC = () => {
         </div>
         <div className="mt-8 w-full">
           <div className="relative flex">
-            <div className="mr-4 flex-grow">
+            <div className="flex-grow">
               <input
-                className="search w-full rounded-lg border-2 border-slate-300 py-4 pl-12 pr-8 italic text-slate-400 outline-none placeholder:text-slate-300 focus:border-slate-400"
+                className="filters background-white w-full rounded-lg border-2 border-slate-300 py-4 pl-12 pr-8 italic text-slate-400 outline-none placeholder:text-slate-300 focus:border-slate-400"
                 type="text"
-                placeholder="Search by name..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Filters..."
+                value={filters}
+                onChange={(event) => setFilters(event.target.value)}
               />
               <IonIcon
-                name="search"
+                name="funnel-outline"
                 className="absolute left-4 top-1/2 -translate-y-1/2 transform text-2xl text-slate-300"
               />
-            </div>
-            <div className="group z-10 flex cursor-pointer items-center justify-center rounded-lg border-2 border-slate-300 px-8 py-4">
-              <IonIcon name="options-outline" className="text-2xl" />
-              <div className="ml-2 italic">Filter</div>
-              <div className="absolute left-full top-0 hidden flex-col pl-16 group-hover:flex">
-                <div className="rounded-lg border-2 border-slate-300 p-4 italic">
-                  <div>
-                    <div onClick={handlePrioritiesToggle} className="text-slate-300">
-                      &lt; Priorities /&gt;
-                    </div>
-                    <div className="flex gap-4">
-                      {["low", "medium", "high"].map((priority) => (
-                        <div
-                          onClick={handlePrioritiesChange(priority)}
-                          key={priority}
-                          className={`flex items-center rounded-lg pl-2 capitalize ${
-                            priorities.includes(priority) ? "text-slate-400" : "text-slate-300"
-                          }`}
-                        >
-                          [{priority}]
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-8">
-                    <div onClick={handleStatusToggle} className="text-slate-300">
-                      &lt; Status /&gt;
-                    </div>
-                    <div className="flex gap-4">
-                      {["pending", "completed"].map((state) => (
-                        <div
-                          onClick={handleStatusChange(state)}
-                          key={state}
-                          className={`flex items-center capitalize ${state} ${
-                            status.includes(state) ? "text-slate-400" : "text-slate-300"
-                          }`}
-                        >
-                          [{state}]
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -208,25 +178,38 @@ const App: React.FC = () => {
           ) : (
             <div className="flex flex-grow flex-col items-center justify-center text-center italic text-slate-400">
               <p>No matching tasks!</p>
-              <code className="mt-8 rounded-lg border-2 border-dashed border-slate-300 p-8">
-                <p>&lt; Priorities &gt;</p>
-                <p>taskName &rarr; [Low]</p>
-                <p>!taskName &rarr; [Medium]</p>
-                <p>*taskName &rarr; [High]</p>
-                <p>&lt;/ Priorities &gt;</p>
-              </code>
+              <div className="flex gap-4">
+                <code className="mt-8 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 p-8">
+                  <p>&lt; Priorities &gt;</p>
+                  <p>taskName &rarr; [Low]</p>
+                  <p>!taskName &rarr; [Medium]</p>
+                  <p>*taskName &rarr; [High]</p>
+                  <p>&lt;/ Priorities &gt;</p>
+                </code>
+                <code className="mt-8 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 p-8">
+                  <p>&lt; Filters &gt;</p>
+                  <p>?taskName &rarr; [Low]</p>
+                  <p>!taskName &rarr; [Medium]</p>
+                  <p>*taskName &rarr; [High]</p>
+                  <p>@taskName &rarr; [Pending]</p>
+                  <p>#taskName &rarr; [Completed]</p>
+                  <p>?!*@#taskName &rarr; ...</p>
+                  <p>&lt;/ Filters &gt;</p>
+                </code>
+              </div>
             </div>
           )}
         </div>
         <div className="mt-4 flex w-full">
           <div className="relative mr-4 flex-grow">
             <input
-              className="add w-full rounded-lg border-2 border-slate-300 py-4 pl-12 pr-8 italic text-slate-400 outline-none placeholder:text-slate-300 focus:border-slate-400"
+              className="add background-white w-full rounded-lg border-2 border-slate-300 py-4 pl-12 pr-8 italic text-slate-400 outline-none placeholder:text-slate-300 focus:border-slate-400"
               onChange={handleNewTaskChange}
               onKeyDown={handleSubmitNewTaskChange}
               value={newTask}
               type="text"
-              placeholder="Enter new task here..."
+              placeholder="Enter a new task here..."
+              autoFocus
             />
             <IonIcon
               name="create-outline"
