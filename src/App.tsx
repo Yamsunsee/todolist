@@ -20,8 +20,8 @@ const App: React.FC = () => {
   const [newTask, setNewTask] = useState("");
   const [filters, setFilters] = useState("");
   const storageTasks = useMemo(() => {
-    const tasks = JSON.parse(localStorage.getItem("yam-todolist") || "");
-    if (tasks.length > 0) return tasks;
+    const tasks = JSON.parse(localStorage.getItem("yam-todolist") || "[]");
+    if (tasks) return tasks;
     localStorage.setItem("yam-todolist", JSON.stringify([]));
   }, []);
   const [tasks, setTasks] = useState<Task[]>(storageTasks);
